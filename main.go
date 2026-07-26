@@ -48,6 +48,16 @@ func main() {
 			fmt.Fprintf(os.Stderr, "now: %v\n", err)
 			os.Exit(1)
 		}
+	case "install":
+		if err := cmdInstall(); err != nil {
+			fmt.Fprintf(os.Stderr, "install: %v\n", err)
+			os.Exit(1)
+		}
+	case "uninstall":
+		if err := cmdUninstall(); err != nil {
+			fmt.Fprintf(os.Stderr, "uninstall: %v\n", err)
+			os.Exit(1)
+		}
 	case "version", "-v", "--version":
 		fmt.Println(version)
 	case "help", "-h", "--help":
@@ -66,6 +76,8 @@ Usage:
   lfm auth [-c config.yaml]   Interactive Last.fm authorization
   lfm run  [-c config.yaml]   Start polling daemon (foreground)
   lfm now                     Print currently playing track
+  lfm install                 Install LaunchAgent (start at login)
+  lfm uninstall               Remove LaunchAgent
   lfm version
 
 Config: %s

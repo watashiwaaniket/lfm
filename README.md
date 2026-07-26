@@ -79,9 +79,32 @@ Optional config path: `-c /path/to/config.yaml`
 go test ./...
 ```
 
-## launchd (optional)
+## LaunchAgent (background at login)
 
-A sample plist can load the binary as a user agent; not installed by this project yet. Run under `launchctl` pointing at `lfm run` once auth is done.
+Finish **auth** first (`lfm auth`), then install a user LaunchAgent:
+
+```bash
+go build -o lfm .
+# Optional but recommended: put the binary somewhere stable
+mkdir -p ~/bin && cp lfm ~/bin/lfm
+
+# Install from the binary you want launchd to run
+~/bin/lfm install    # or: ./lfm install
+```
+
+This writes `~/Library/LaunchAgents/com.lfm.plist`, starts the agent now, and on every login.
+
+| Action | Command |
+|--------|---------|
+| Status | `launchctl print gui/$(id -u)/com.lfm` |
+| Logs | `tail -f ~/Library/Logs/lfm/stderr.log` |
+| Stop / remove | `lfm uninstall` |
+
+**Notes**
+
+- The agent runs `lfm run` using the **absolute path** of the binary you called `install` with. Rebuild + re-run `install` after moving the binary.
+- Prefer a stable path (`~/bin/lfm`), not a temp `go run` binary.
+- If Music never scrobbles under launchd, grant **Automation** access: System Settings → Privacy & Security → Automation (allow `lfm` to control Music). Running `./lfm now` once from Terminal can trigger the prompt.
 
 ## License
 

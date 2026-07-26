@@ -42,21 +42,25 @@ type AppleScriptMusic struct {
 	Timeout time.Duration
 }
 
-// DefaultAppleScript is a single-call script that returns pipe-separated fields:
+// defaultAppleScript is a single-call script that returns pipe-separated fields:
 // state|name|artist|album|duration|position
+//
+// Note: do not use the identifier `st` — on current macOS AppleScript it is a
+// syntax error ("Expected expression but found st"), which made every poll
+// soft-fail as stopped.
 const defaultAppleScript = `
 tell application "Music"
     if not (exists current track) then
         return "stopped||||0|0"
     end if
     set t to current track
-    set st to player state as string
-    set nm to name of t
-    set ar to artist of t
-    set al to album of t
-    set dur to duration of t
-    set pos to player position
-    return st & "|" & nm & "|" & ar & "|" & al & "|" & dur & "|" & pos
+    set playerStateStr to (player state as string)
+    set trackName to name of t
+    set trackArtist to artist of t
+    set trackAlbum to album of t
+    set trackDur to duration of t
+    set trackPos to player position
+    return playerStateStr & "|" & trackName & "|" & trackArtist & "|" & trackAlbum & "|" & trackDur & "|" & trackPos
 end tell
 `
 
