@@ -111,6 +111,11 @@ func cmdInstall() error {
 		return err
 	}
 
+	// Ad-hoc sign so launchd does not reject the binary (OS_REASON_CODESIGNING).
+	if out, err := exec.Command("codesign", "-s", "-", "-f", p.Binary).CombinedOutput(); err != nil {
+		fmt.Printf("note: codesign: %v (%s)\n", err, strings.TrimSpace(string(out)))
+	}
+
 	// Replace any existing agent cleanly.
 	_ = launchctlBootout(p.Label)
 

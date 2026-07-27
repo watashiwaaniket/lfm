@@ -1,4 +1,15 @@
+# binaries
 lfm
+apps/cli/lfm
 *.test
 /dist/
+
+# OS / editor
 .DS_Store
+.idea/
+.vscode/
+
+# local secrets (never commit)
+.config/
+**/.env
+**/config.local.yaml
