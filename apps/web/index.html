@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>lfm — linkFM</title>
+  <meta name="description" content="lfm scrobbles Apple Music to Last.fm and shows Discord Rich Presence. Lightweight macOS daemon." />
+  <meta property="og:title" content="lfm — linkFM" />
+  <meta property="og:description" content="Apple Music → Last.fm scrobbler with Discord Rich Presence for macOS." />
+  <meta property="og:image" content="public/lfm.png" />
+  <link rel="icon" href="public/lfm.png" type="image/png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg-glow" aria-hidden="true"></div>
+
+  <header class="nav">
+    <a class="brand" href="#">
+      <img src="public/lfm.png" alt="" width="32" height="32" class="brand-mark" />
+      <span>lfm</span>
+    </a>
+    <nav class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#install">Install</a>
+      <a href="#discord">Discord</a>
+      <a class="btn btn-ghost" href="https://github.com/watashiwaaniket/lfm" target="_blank" rel="noreferrer">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow enter" style="--d:0">macOS · open source · v2</p>
+        <h1 class="enter" style="--d:1">Apple Music,<br />linked to Last.fm.</h1>
+        <p class="lede enter" style="--d:2">
+          <strong>lfm</strong> is a tiny local daemon that watches what you’re playing in Music,
+          scrobbles it correctly to Last.fm, and optionally mirrors it on Discord Rich Presence.
+        </p>
+        <div class="hero-actions enter" style="--d:3">
+          <a class="btn btn-primary" href="#install">Get started</a>
+          <a class="btn btn-secondary" href="https://github.com/watashiwaaniket/lfm" target="_blank" rel="noreferrer">View source</a>
+        </div>
+        <ul class="trust enter" style="--d:4">
+          <li>No audio sniffing</li>
+          <li>Official Last.fm API</li>
+          <li>Single static binary</li>
+        </ul>
+      </div>
+      <div class="hero-visual enter" style="--d:2">
+        <figure class="showcase">
+          <img
+            src="public/discord-showcase.png"
+            alt="Discord Rich Presence showing album art, track, artist, and playback progress"
+            class="showcase-img"
+            width="898"
+            height="388"
+          />
+          <figcaption class="showcase-caption">Live Discord status while you listen</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section id="features" class="section">
+      <h2>Built for people who actually listen</h2>
+      <p class="section-lede">Correct scrobble rules, pause-aware timing, and a background LaunchAgent when you want set-and-forget.</p>
+      <div class="grid">
+        <article class="card">
+          <h3>True scrobble rules</h3>
+          <p>Duration over 30s, then 50% played or 4 minutes — the same thresholds Last.fm expects.</p>
+        </article>
+        <article class="card">
+          <h3>Pause-aware</h3>
+          <p>Wall-clock accumulation only while Music is playing. Pause, resume, no double scrobbles.</p>
+        </article>
+        <article class="card">
+          <h3>Discord presence</h3>
+          <p>Optional Rich Presence shows track, artist, and album while you listen — no extra apps.</p>
+        </article>
+        <article class="card">
+          <h3>LaunchAgent</h3>
+          <p><code>lfm install</code> starts at login. Logs live under <code>~/Library/Logs/lfm</code>.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="discord" class="section section-discord">
+      <div class="discord-panel">
+        <h2>Discord Rich Presence</h2>
+        <p>
+          Create a Discord application, drop in the client ID, and lfm will update your status
+          when a track plays or pauses. Works alongside Last.fm scrobbling in the same process.
+        </p>
+        <pre class="code-block"><code>discord:
+  enabled: true
+  client_id: "YOUR_DISCORD_APP_ID"
+  large_image: "lfm"   # optional art asset key
+  large_text: "lfm"</code></pre>
+      </div>
+    </section>
+
+    <section id="install" class="section">
+      <h2>Install</h2>
+      <ol class="steps">
+        <li>
+          <span class="step-n">1</span>
+          <div>
+            <h3>Clone &amp; build</h3>
+            <pre class="code-block"><code>git clone https://github.com/watashiwaaniket/lfm.git
+cd lfm/apps/cli
+go build -o lfm .
+mkdir -p ~/bin && cp lfm ~/bin/lfm</code></pre>
+          </div>
+        </li>
+        <li>
+          <span class="step-n">2</span>
+          <div>
+            <h3>Configure Last.fm</h3>
+            <p>Create <code>~/.config/lfm/config.yaml</code> with your API key &amp; secret, then run <code>lfm auth</code>.</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-n">3</span>
+          <div>
+            <h3>Run or install</h3>
+            <pre class="code-block"><code>lfm run          # foreground
+lfm install      # LaunchAgent background</code></pre>
+          </div>
+        </li>
+      </ol>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-brand">
+      <img src="public/lfm.png" alt="" width="24" height="24" />
+      <span>lfm — linkFM</span>
+    </div>
+    <p>Apple Music is a trademark of Apple Inc. Last.fm is a trademark of Last.fm Ltd. Not affiliated.</p>
+    <a href="https://github.com/watashiwaaniket/lfm">GitHub</a>
+  </footer>
+</body>
+</html>

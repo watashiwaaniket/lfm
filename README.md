@@ -1,114 +1,105 @@
 <p align="center">
-  <img src="asset/lfm.png" alt="lfm" width="160" />
+  <img src="assets/lfm.png" alt="lfm" width="160" />
 </p>
 
-# lfm - linkFM
+# lfm — linkFM
 
-Lightweight **macOS** daemon that polls Apple Music via AppleScript and scrobbles to [Last.fm](https://www.last.fm).
+**Monorepo** for the lfm product: a macOS Apple Music → Last.fm scrobbler with optional Discord Rich Presence, plus a product landing page.
 
-- Single static binary, no CGO
-- Official Last.fm API only (no audio sniffing)
-- Correct scrobble rules: >30s duration, and 50% played **or** 4 minutes
-
-## Requirements
-
-- macOS with the **Music** app
-- Go 1.22+ (to build)
-- Last.fm [API key + secret](https://www.last.fm/api/account/create)
-
-## Install
-
-```bash
-go build -o lfm .
+```
+lfm/
+├── apps/
+│   ├── cli/          # Go daemon (scrobbler + Discord RPC + launchd)
+│   └── web/          # Product landing page (static)
+├── assets/           # Shared brand assets
+└── README.md
 ```
 
-## Configuration
+## Features (v2)
 
-Create `~/.config/lfm/config.yaml`:
+- Apple Music via AppleScript → official Last.fm API
+- Correct scrobble rules (30s+, 50% or 4 minutes)
+- Optional **Discord Rich Presence**
+- LaunchAgent install (`lfm install`)
+- Landing page ready for static hosting
+
+## CLI (`apps/cli`)
+
+### Build
+
+```bash
+cd apps/cli
+go build -o lfm .
+# optional stable path
+mkdir -p ~/bin && cp lfm ~/bin/lfm
+```
+
+### Configure
+
+`~/.config/lfm/config.yaml`:
 
 ```yaml
 lastfm:
   api_key: "YOUR_KEY"
   api_secret: "YOUR_SECRET"
-  # session_key filled by `auth`
+  # session_key from `lfm auth`
+
+discord:
+  enabled: true
+  client_id: "YOUR_DISCORD_APP_ID"
+  large_image: "lfm"   # upload this art key in Discord Developer Portal
+  large_text: "lfm"
+
 poll_interval: 3
-min_track_duration: 30
-scrobble_threshold: 0.5
-scrobble_max_seconds: 240
 log_level: info
 ```
 
-Environment variables override the file:
+| Env | Purpose |
+|-----|---------|
+| `LASTFM_API_KEY` / `LASTFM_API_SECRET` / `LASTFM_SESSION_KEY` | Last.fm |
+| `DISCORD_ENABLED` | `true` / `false` |
+| `DISCORD_CLIENT_ID` | Discord application ID |
+| `DISCORD_LARGE_IMAGE` | Rich Presence large asset key |
+| `POLL_INTERVAL` / `LOG_LEVEL` | Runtime |
 
-| Variable | Purpose |
-|----------|---------|
-| `LASTFM_API_KEY` | API key |
-| `LASTFM_API_SECRET` | API secret |
-| `LASTFM_SESSION_KEY` | Session after auth |
-| `POLL_INTERVAL` | Seconds between polls |
-| `LOG_LEVEL` | debug / info / warn / error |
-
-## Usage
+### Usage
 
 ```bash
-# 1. Authorize (opens a Last.fm URL; saves session_key to config)
-./lfm auth
-
-# 2. Run in the foreground
-./lfm run
-
-# Debug: print what Music reports
-./lfm now
-
-./lfm version
+lfm auth       # browser auth → saves session_key
+lfm run        # foreground daemon
+lfm now        # debug current track
+lfm install    # LaunchAgent (login)
+lfm uninstall
+lfm version    # 2.0.0
 ```
 
-Optional config path: `-c /path/to/config.yaml`
+### Discord setup
 
-### Signals
+1. Open [Discord Developer Portal](https://discord.com/developers/applications) → New Application.
+2. Copy **Application ID** → `discord.client_id`.
+3. (Optional) Rich Presence → Art Assets → upload icon as key `lfm`.
+4. Enable in config, start Discord desktop, then `lfm run`.
 
-`run` handles **SIGINT** / **SIGTERM** and exits cleanly.
+Presence shows track name, artist/album, elapsed time while playing, and “Paused” when paused. If Discord isn’t running, lfm keeps scrobbling and retries quietly.
 
-## How scrobbling works
-
-1. Poll Music every `poll_interval` seconds (default 3).
-2. On a new playing track → `track.updateNowPlaying`.
-3. Accumulate **wall-clock** time while `player state` is playing (pauses freeze the counter).
-4. When played time ≥ 50% of duration **or** ≥ 240s (and duration > 30s) → one `track.scrobble`.
-5. Track change or full stop resets state.
-
-## Tests
+### Tests
 
 ```bash
-go test ./...
+cd apps/cli && go test ./...
 ```
 
-## LaunchAgent (background at login)
+## Web (`apps/web`)
 
-Finish **auth** first (`lfm auth`), then install a user LaunchAgent:
+Static landing page (no build step):
 
 ```bash
-go build -o lfm .
-# Optional but recommended: put the binary somewhere stable
-mkdir -p ~/bin && cp lfm ~/bin/lfm
-
-# Install from the binary you want launchd to run
-~/bin/lfm install    # or: ./lfm install
+cd apps/web
+# any static server, e.g.
+python3 -m http.server 5173
+# open http://localhost:5173
 ```
 
-This writes `~/Library/LaunchAgents/com.lfm.plist`, starts the agent now, and on every login.
-
-| Action | Command |
-|--------|---------|
-| Status | `launchctl print gui/$(id -u)/com.lfm` |
-| Logs | `tail -f ~/Library/Logs/lfm/stderr.log` |
-| Stop / remove | `lfm uninstall` |
-
-**Notes**
-
-- The agent runs `lfm run` using the **absolute path** of the binary you called `install` with. Rebuild + re-run `install` after moving the binary.
-- Prefer a stable path (`~/bin/lfm`), not a temp `go run` binary.
-- If Music never scrobbles under launchd, grant **Automation** access: System Settings → Privacy & Security → Automation (allow `lfm` to control Music). Running `./lfm now` once from Terminal can trigger the prompt.
+Deploy `apps/web` to GitHub Pages, Cloudflare Pages, Netlify, etc.
 
 ## License
 

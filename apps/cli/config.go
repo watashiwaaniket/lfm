@@ -19,6 +19,13 @@ type Config struct {
 		Username   string `yaml:"username,omitempty"`
 	} `yaml:"lastfm"`
 
+	Discord struct {
+		Enabled    bool   `yaml:"enabled"`
+		ClientID   string `yaml:"client_id"`
+		LargeImage string `yaml:"large_image"` // Discord art asset key (optional)
+		LargeText  string `yaml:"large_text"`
+	} `yaml:"discord"`
+
 	PollInterval       int     `yaml:"poll_interval"`        // seconds, default 3
 	MinTrackDuration   float64 `yaml:"min_track_duration"`   // seconds, default 30
 	ScrobbleThreshold  float64 `yaml:"scrobble_threshold"`   // fraction, default 0.5
@@ -107,6 +114,32 @@ func applyEnv(c *Config) {
 	if v := os.Getenv("LOG_LEVEL"); v != "" {
 		c.LogLevel = strings.ToLower(v)
 	}
+	if v := os.Getenv("DISCORD_ENABLED"); v != "" {
+		switch strings.ToLower(v) {
+		case "1", "true", "yes", "on":
+			c.Discord.Enabled = true
+		case "0", "false", "no", "off":
+			c.Discord.Enabled = false
+		}
+	}
+	if v := os.Getenv("DISCORD_CLIENT_ID"); v != "" {
+		c.Discord.ClientID = v
+	}
+	if v := os.Getenv("DISCORD_LARGE_IMAGE"); v != "" {
+		c.Discord.LargeImage = v
+	}
+}
+
+// NewPresence builds a Presence from config (Nop when disabled / incomplete).
+// Uses Last.fm + iTunes to resolve album art for Discord's large image.
+func (c Config) NewPresence() Presence {
+	if !c.Discord.Enabled || c.Discord.ClientID == "" {
+		return NopPresence{}
+	}
+	art := NewAlbumArtClient(c.LastFM.APIKey)
+	// large_image is only a fallback portal asset key when no cover is found.
+	fallback := c.Discord.LargeImage
+	return NewDiscordPresence(c.Discord.ClientID, fallback, art)
 }
 
 // ValidateAuthCredentials checks api key/secret are present (session optional for auth).
