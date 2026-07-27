@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "lfm-web",
+  // Workers Static Assets only (no Worker script required).
+  "compatibility_date": "2026-07-26",
+  "assets": {
+    "directory": "./public",
+    // SPA-style fallback: unknown paths serve index.html (harmless for this site).
+    "not_found_handling": "single-page-application"
+  },
+  // Custom Domain on your Cloudflare zone (aniketdhakane.xyz).
+  // Deploy creates/updates the DNS record for this hostname.
+  "routes": [
+    {
+      "pattern": "lfm.aniketdhakane.xyz",
+      "custom_domain": true
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "lfm-web",
+  "private": true,
+  "version": "2.0.0",
+  "description": "lfm product landing page — Cloudflare Workers Static Assets",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:dry": "wrangler deploy --dry-run"
+  },
+  "devDependencies": {
+    "wrangler": "^4.114.0"
+  }
+}

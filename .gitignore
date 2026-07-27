@@ -13,3 +13,8 @@ apps/cli/lfm
 .config/
 **/.env
 **/config.local.yaml
+**/.dev.vars
+
+# Node / Wrangler
+**/node_modules/
+**/.wrangler/

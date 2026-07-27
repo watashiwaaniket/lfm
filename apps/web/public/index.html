@@ -7,16 +7,18 @@
   <meta name="description" content="lfm scrobbles Apple Music to Last.fm and shows Discord Rich Presence. Lightweight macOS daemon." />
   <meta property="og:title" content="lfm — linkFM" />
   <meta property="og:description" content="Apple Music → Last.fm scrobbler with Discord Rich Presence for macOS." />
-  <meta property="og:image" content="public/lfm.png" />
-  <link rel="icon" href="public/lfm.png" type="image/png" />
-  <link rel="stylesheet" href="styles.css" />
+  <meta property="og:image" content="https://lfm.aniketdhakane.xyz/lfm.png" />
+  <meta property="og:url" content="https://lfm.aniketdhakane.xyz/" />
+  <link rel="canonical" href="https://lfm.aniketdhakane.xyz/" />
+  <link rel="icon" href="/lfm.png" type="image/png" />
+  <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
   <div class="bg-glow" aria-hidden="true"></div>
 
   <header class="nav">
-    <a class="brand" href="#">
-      <img src="public/lfm.png" alt="" width="32" height="32" class="brand-mark" />
+    <a class="brand" href="/">
+      <img src="/lfm.png" alt="" width="32" height="32" class="brand-mark" />
       <span>lfm</span>
     </a>
     <nav class="nav-links">
@@ -49,7 +51,7 @@
       <div class="hero-visual enter" style="--d:2">
         <figure class="showcase">
           <img
-            src="public/discord-showcase.png"
+            src="/discord-showcase.png"
             alt="Discord Rich Presence showing album art, track, artist, and playback progress"
             class="showcase-img"
             width="898"
@@ -74,7 +76,7 @@
         </article>
         <article class="card">
           <h3>Discord presence</h3>
-          <p>Optional Rich Presence shows track, artist, and album while you listen — no extra apps.</p>
+          <p>Optional Rich Presence shows track, artist, and album art while you listen — no extra apps.</p>
         </article>
         <article class="card">
           <h3>LaunchAgent</h3>
@@ -88,12 +90,13 @@
         <h2>Discord Rich Presence</h2>
         <p>
           Create a Discord application, drop in the client ID, and lfm will update your status
-          when a track plays or pauses. Works alongside Last.fm scrobbling in the same process.
+          when a track plays or pauses. Album art is resolved automatically via Last.fm / iTunes.
+          Works alongside Last.fm scrobbling in the same process (including LaunchAgent).
         </p>
         <pre class="code-block"><code>discord:
   enabled: true
   client_id: "YOUR_DISCORD_APP_ID"
-  large_image: "lfm"   # optional art asset key
+  large_image: "lfm"   # fallback portal asset if cover art fails
   large_text: "lfm"</code></pre>
       </div>
     </section>
@@ -132,7 +135,7 @@ lfm install      # LaunchAgent background</code></pre>
 
   <footer class="footer">
     <div class="footer-brand">
-      <img src="public/lfm.png" alt="" width="24" height="24" />
+      <img src="/lfm.png" alt="" width="24" height="24" />
       <span>lfm — linkFM</span>
     </div>
     <p>Apple Music is a trademark of Apple Inc. Last.fm is a trademark of Last.fm Ltd. Not affiliated.</p>
