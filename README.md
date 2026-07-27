@@ -1,4 +1,8 @@
-# lfm - lastFM
+<p align="center">
+  <img src="asset/lfm.png" alt="lfm" width="160" />
+</p>
+
+# lfm - linkFM
 
 Lightweight **macOS** daemon that polls Apple Music via AppleScript and scrobbles to [Last.fm](https://www.last.fm).
 

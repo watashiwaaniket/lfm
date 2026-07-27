@@ -1,3 +1,4 @@
 lfm
 *.test
 /dist/
+.DS_Store
