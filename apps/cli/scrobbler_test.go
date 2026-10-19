@@ -80,9 +80,61 @@ func setupScrobbler(t *testing.T) (*Scrobbler, *fakeLastFM, *testClock) {
 	cfg := DefaultConfig()
 	cfg.PollInterval = 3
 	clk := &testClock{base: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)}
-	s := NewScrobbler(&fakeMusic{}, lf, cfg, testLogger())
+	s := NewScrobbler(&fakeMusic{}, lf, NopPresence{}, cfg, testLogger())
 	s.now = clk.Now
 	return s, lf, clk
+}
+
+// fakePresence records Discord-style updates.
+type fakePresence struct {
+	playing []string
+	paused  []string
+	clears  int
+}
+
+func (f *fakePresence) SetPlaying(track Track, startedAt time.Time) error {
+	f.playing = append(f.playing, track.Artist+"|"+track.Name)
+	return nil
+}
+func (f *fakePresence) SetPaused(track Track) error {
+	f.paused = append(f.paused, track.Artist+"|"+track.Name)
+	return nil
+}
+func (f *fakePresence) Clear() error { f.clears++; return nil }
+func (f *fakePresence) Close() error { return nil }
+
+func TestPresenceOnPlayPauseStop(t *testing.T) {
+	lf := &fakeLastFM{}
+	pr := &fakePresence{}
+	cfg := DefaultConfig()
+	cfg.PollInterval = 3
+	clk := &testClock{base: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)}
+	s := NewScrobbler(&fakeMusic{}, lf, pr, cfg, testLogger())
+	s.now = clk.Now
+
+	tr := playing("Song", "Artist", 100)
+	s.tick(tr)
+	if len(pr.playing) != 1 {
+		t.Fatalf("playing updates = %v", pr.playing)
+	}
+
+	paused := tr
+	paused.State = "paused"
+	s.tick(paused)
+	if len(pr.paused) != 1 {
+		t.Fatalf("paused updates = %v", pr.paused)
+	}
+
+	// same paused state should not spam
+	s.tick(paused)
+	if len(pr.paused) != 1 {
+		t.Fatalf("dedupe failed: %v", pr.paused)
+	}
+
+	s.tick(Track{State: "stopped"})
+	if pr.clears != 1 {
+		t.Fatalf("clears = %d", pr.clears)
+	}
 }
 
 func playing(name, artist string, dur float64) Track {

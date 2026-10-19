@@ -25,28 +25,34 @@ type scrobbleState struct {
 
 // Scrobbler polls Music and applies Last.fm scrobble rules.
 type Scrobbler struct {
-	Music  MusicClient
-	LastFM LastFMAPI
-	Cfg    Config
-	Log    *slog.Logger
+	Music    MusicClient
+	LastFM   LastFMAPI
+	Presence Presence
+	Cfg      Config
+	Log      *slog.Logger
 
 	// now is injectable for tests; defaults to time.Now.
 	now func() time.Time
 
-	state scrobbleState
+	state        scrobbleState
+	lastPresence string // dedupe Discord updates
 }
 
 // NewScrobbler wires dependencies.
-func NewScrobbler(music MusicClient, lastfm LastFMAPI, cfg Config, log *slog.Logger) *Scrobbler {
+func NewScrobbler(music MusicClient, lastfm LastFMAPI, presence Presence, cfg Config, log *slog.Logger) *Scrobbler {
 	if log == nil {
 		log = slog.Default()
 	}
+	if presence == nil {
+		presence = NopPresence{}
+	}
 	return &Scrobbler{
-		Music:  music,
-		LastFM: lastfm,
-		Cfg:    cfg,
-		Log:    log,
-		now:    time.Now,
+		Music:    music,
+		LastFM:   lastfm,
+		Presence: presence,
+		Cfg:      cfg,
+		Log:      log,
+		now:      time.Now,
 	}
 }
 
@@ -83,11 +89,19 @@ func (s *Scrobbler) tick(track Track) {
 			if s.state.current.Name != "" || s.state.playedSeconds > 0 {
 				s.Log.Debug("playback stopped; clearing state")
 			}
+			s.clearPresence()
 			s.state = scrobbleState{}
 			return
 		}
 		// Paused (or stopped-with-metadata): freeze accumulation.
 		s.state.lastTick = time.Time{}
+		if track.Name != "" || s.state.current.Name != "" {
+			paused := track
+			if paused.Name == "" {
+				paused = s.state.current
+			}
+			s.updatePresencePaused(paused)
+		}
 		return
 	}
 
@@ -107,6 +121,7 @@ func (s *Scrobbler) tick(track Track) {
 			lastTick:  now,
 		}
 		s.sendNowPlaying(track)
+		s.updatePresencePlaying(track, now)
 		return
 	}
 
@@ -117,6 +132,7 @@ func (s *Scrobbler) tick(track Track) {
 		if !s.state.nowPlayingSent {
 			s.sendNowPlaying(track)
 		}
+		s.updatePresencePlaying(track, s.state.startedAt)
 		return
 	}
 
@@ -178,6 +194,42 @@ func (s *Scrobbler) doScrobble(track Track) {
 	)
 }
 
+func (s *Scrobbler) updatePresencePlaying(track Track, startedAt time.Time) {
+	key := presenceKey(track, true)
+	if key == s.lastPresence {
+		return
+	}
+	if err := s.Presence.SetPlaying(track, startedAt); err != nil {
+		s.Log.Debug("discord presence", "err", err)
+		return
+	}
+	s.lastPresence = key
+	s.Log.Debug("discord presence", "status", "playing", "track", track.Name)
+}
+
+func (s *Scrobbler) updatePresencePaused(track Track) {
+	key := presenceKey(track, false)
+	if key == s.lastPresence {
+		return
+	}
+	if err := s.Presence.SetPaused(track); err != nil {
+		s.Log.Debug("discord presence", "err", err)
+		return
+	}
+	s.lastPresence = key
+	s.Log.Debug("discord presence", "status", "paused", "track", track.Name)
+}
+
+func (s *Scrobbler) clearPresence() {
+	if s.lastPresence == "" {
+		return
+	}
+	if err := s.Presence.Clear(); err != nil {
+		s.Log.Debug("discord clear", "err", err)
+	}
+	s.lastPresence = ""
+}
+
 // Run polls until ctx is cancelled (SIGINT/SIGTERM).
 func (s *Scrobbler) Run(ctx context.Context) error {
 	interval := time.Duration(s.Cfg.PollInterval) * time.Second
@@ -185,7 +237,10 @@ func (s *Scrobbler) Run(ctx context.Context) error {
 		interval = 3 * time.Second
 	}
 
-	s.Log.Info("scrobbler started", "poll_interval", interval.String())
+	s.Log.Info("scrobbler started",
+		"poll_interval", interval.String(),
+		"discord", s.Cfg.Discord.Enabled && s.Cfg.Discord.ClientID != "",
+	)
 
 	// Immediate first tick, then ticker.
 	s.pollOnce()
@@ -197,6 +252,8 @@ func (s *Scrobbler) Run(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			s.Log.Info("scrobbler stopping")
+			s.clearPresence()
+			_ = s.Presence.Close()
 			return nil
 		case <-t.C:
 			s.pollOnce()

@@ -157,6 +157,40 @@ func TestValidateRun(t *testing.T) {
 	}
 }
 
+func TestLoadConfig_DiscordEnv(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "nope.yaml")
+	t.Setenv("LASTFM_API_KEY", "k")
+	t.Setenv("LASTFM_API_SECRET", "s")
+	t.Setenv("LASTFM_SESSION_KEY", "sk")
+	t.Setenv("DISCORD_ENABLED", "true")
+	t.Setenv("DISCORD_CLIENT_ID", "999")
+	t.Setenv("DISCORD_LARGE_IMAGE", "cover")
+
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Discord.Enabled || cfg.Discord.ClientID != "999" || cfg.Discord.LargeImage != "cover" {
+		t.Fatalf("discord: %+v", cfg.Discord)
+	}
+	p := cfg.NewPresence()
+	dp, ok := p.(*DiscordPresence)
+	if !ok {
+		t.Fatalf("expected DiscordPresence, got %T", p)
+	}
+	if dp.Art == nil {
+		t.Fatal("expected art resolver")
+	}
+}
+
+func TestNewPresence_Disabled(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.Discord.Enabled = false
+	if _, ok := cfg.NewPresence().(NopPresence); !ok {
+		t.Fatal("expected NopPresence")
+	}
+}
+
 func TestSaveSession(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "sub", "config.yaml")
 	// Pre-seed API credentials

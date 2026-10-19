@@ -11,7 +11,7 @@ import (
 	"syscall"
 )
 
-const version = "0.1.0"
+const version = "2.0.0"
 
 func main() {
 	if len(os.Args) < 2 {
@@ -70,7 +70,7 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Fprintf(os.Stderr, `lfm — lastFM scrobbler (Apple Music → Last.fm)
+	fmt.Fprintf(os.Stderr, `lfm — linkFM scrobbler (Apple Music → Last.fm + Discord)
 
 Usage:
   lfm auth [-c config.yaml]   Interactive Last.fm authorization
@@ -82,6 +82,7 @@ Usage:
 
 Config: %s
 Env:    LASTFM_API_KEY, LASTFM_API_SECRET, LASTFM_SESSION_KEY, POLL_INTERVAL
+        DISCORD_ENABLED, DISCORD_CLIENT_ID, DISCORD_LARGE_IMAGE, LOG_LEVEL
 `, DefaultConfigPath())
 }
 
@@ -153,7 +154,16 @@ func cmdRun(configPath string) error {
 	log := newLogger(cfg.LogLevel)
 	music := NewAppleScriptMusic()
 	lastfm := NewLastFMClient(cfg.LastFM.APIKey, cfg.LastFM.APISecret, cfg.LastFM.SessionKey)
-	scrobbler := NewScrobbler(music, lastfm, cfg, log)
+	presence := cfg.NewPresence()
+	if cfg.Discord.Enabled {
+		if cfg.Discord.ClientID == "" {
+			log.Warn("discord.enabled but client_id missing; presence disabled")
+			presence = NopPresence{}
+		} else {
+			log.Info("discord rich presence enabled")
+		}
+	}
+	scrobbler := NewScrobbler(music, lastfm, presence, cfg, log)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

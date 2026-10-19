@@ -1,115 +1,205 @@
 <p align="center">
-  <img src="asset/lfm.png" alt="lfm" width="160" />
+  <img src="assets/lfm.png" alt="lfm" width="160" />
 </p>
 
-# lfm - linkFM
+# lfm — linkFM
 
-Lightweight **macOS** daemon that polls Apple Music via AppleScript and scrobbles to [Last.fm](https://www.last.fm).
+**Monorepo** for the lfm product: a macOS Apple Music → Last.fm scrobbler with optional Discord Rich Presence, plus a product landing page.
 
-- Single static binary, no CGO
-- Official Last.fm API only (no audio sniffing)
-- Correct scrobble rules: >30s duration, and 50% played **or** 4 minutes
+**Site:** [lfm.aniketdhakane.xyz](https://lfm.aniketdhakane.xyz)
 
-## Requirements
-
-- macOS with the **Music** app
-- Go 1.22+ (to build)
-- Last.fm [API key + secret](https://www.last.fm/api/account/create)
-
-## Install
-
-```bash
-go build -o lfm .
+```
+lfm/
+├── apps/
+│   ├── cli/          # Go daemon (scrobbler + Discord RPC + launchd)
+│   └── web/          # Landing page → Cloudflare Workers
+├── assets/           # Shared brand assets
+└── README.md
 ```
 
-## Configuration
+## Features (v2)
 
-Create `~/.config/lfm/config.yaml`:
+- Apple Music via AppleScript → official Last.fm API
+- Correct scrobble rules (30s+, 50% or 4 minutes)
+- Optional **Discord Rich Presence** (album art, Listening activity)
+- LaunchAgent install (`lfm install`)
+- Landing page on Cloudflare Workers (`lfm.aniketdhakane.xyz`)
+
+---
+
+## CLI (`apps/cli`)
+
+### Build
+
+```bash
+cd apps/cli
+go build -o lfm .
+# optional stable path
+mkdir -p ~/bin && cp lfm ~/bin/lfm
+```
+
+### Configure
+
+`~/.config/lfm/config.yaml`:
 
 ```yaml
 lastfm:
   api_key: "YOUR_KEY"
   api_secret: "YOUR_SECRET"
-  # session_key filled by `auth`
+  # session_key from `lfm auth`
+
+discord:
+  enabled: true
+  client_id: "YOUR_DISCORD_APP_ID"
+  large_image: "lfm"   # optional fallback asset key in Developer Portal
+  large_text: "lfm"
+
 poll_interval: 3
-min_track_duration: 30
-scrobble_threshold: 0.5
-scrobble_max_seconds: 240
 log_level: info
 ```
 
-Environment variables override the file:
+| Env | Purpose |
+|-----|---------|
+| `LASTFM_API_KEY` / `LASTFM_API_SECRET` / `LASTFM_SESSION_KEY` | Last.fm |
+| `DISCORD_ENABLED` | `true` / `false` |
+| `DISCORD_CLIENT_ID` | Discord application ID |
+| `DISCORD_LARGE_IMAGE` | Fallback Rich Presence asset key |
+| `POLL_INTERVAL` / `LOG_LEVEL` | Runtime |
 
-| Variable | Purpose |
-|----------|---------|
-| `LASTFM_API_KEY` | API key |
-| `LASTFM_API_SECRET` | API secret |
-| `LASTFM_SESSION_KEY` | Session after auth |
-| `POLL_INTERVAL` | Seconds between polls |
-| `LOG_LEVEL` | debug / info / warn / error |
-
-## Usage
+### Usage
 
 ```bash
-# 1. Authorize (opens a Last.fm URL; saves session_key to config)
-./lfm auth
-
-# 2. Run in the foreground
-./lfm run
-
-# Debug: print what Music reports
-./lfm now
-
-./lfm version
+lfm auth       # browser auth → saves session_key
+lfm run        # foreground daemon (scrobble + Discord)
+lfm now        # debug current track
+lfm install    # LaunchAgent (login) — includes Discord if configured
+lfm uninstall
+lfm version    # 2.0.0
 ```
 
-Optional config path: `-c /path/to/config.yaml`
+One process does **both** Last.fm scrobbling and Discord presence. Prefer either LaunchAgent **or** `lfm run`, not both.
 
-### Signals
+### Discord setup (step by step)
 
-`run` handles **SIGINT** / **SIGTERM** and exits cleanly.
+Discord presence is optional but recommended. It runs inside the same `lfm run` / LaunchAgent process.
 
-## How scrobbling works
+1. **Create an app**  
+   Open the [Discord Developer Portal](https://discord.com/developers/applications) → **New Application** → name it (e.g. `lfm` or `Apple Music`).  
+   The name appears as “Listening to **&lt;name&gt;**” in Discord.
 
-1. Poll Music every `poll_interval` seconds (default 3).
-2. On a new playing track → `track.updateNowPlaying`.
-3. Accumulate **wall-clock** time while `player state` is playing (pauses freeze the counter).
-4. When played time ≥ 50% of duration **or** ≥ 240s (and duration > 30s) → one `track.scrobble`.
-5. Track change or full stop resets state.
+2. **Copy the Application ID**  
+   General Information → **Application ID** → paste into config:
 
-## Tests
+   ```yaml
+   discord:
+     enabled: true
+     client_id: "1234567890123456789"
+   ```
+
+   Or: `export DISCORD_ENABLED=true DISCORD_CLIENT_ID=...`
+
+3. **(Optional) Fallback icon**  
+   Rich Presence → **Art Assets** → upload `assets/lfm.png` with key **`lfm`**.  
+   Used only when album art cannot be resolved. Live covers come from Last.fm / iTunes automatically.
+
+4. **Desktop Discord must be open**  
+   Presence uses local IPC. Browser-only Discord is not enough.
+
+5. **Activity privacy**  
+   Discord → Settings → **Activity Privacy** → allow others to see your activity (as you prefer).
+
+6. **Run**
+
+   ```bash
+   # Foreground test
+   lfm run
+
+   # Or background (reload agent after config changes)
+   lfm install
+   tail -f ~/Library/Logs/lfm/stderr.log
+   ```
+
+   You should see `discord rich presence enabled` and `scrobbler started … discord=true`.
+
+7. **What shows on your profile**
+
+   | Field | Content |
+   |-------|---------|
+   | Image | Album art (auto) |
+   | Title line | Discord app name (“Listening to …”) |
+   | Details | Song name |
+   | State | Artist (or `Paused · Artist`) |
+   | Button | Apple Music powered by lfm |
+   | Timer | Progress when duration is known |
+
+8. **Troubleshooting**
+
+   | Symptom | Fix |
+   |---------|-----|
+   | No presence | Discord desktop open? `enabled: true` + correct `client_id`? |
+   | Only scrobbling works | Restart agent after editing config: `lfm install` |
+   | LaunchAgent exits (`CODESIGNING`) | `lfm install` ad-hoc signs the binary; rebuild then reinstall |
+   | Two scrobblers | Don’t run terminal `lfm run` while the agent is up |
+   | No cover art | Needs network; falls back to `large_image` portal asset |
+
+### Tests
 
 ```bash
-go test ./...
+cd apps/cli && go test ./...
 ```
 
-## LaunchAgent (background at login)
+---
 
-Finish **auth** first (`lfm auth`), then install a user LaunchAgent:
+## Web (`apps/web`)
+
+Static landing page on **Cloudflare Workers** (Static Assets), custom domain **`lfm.aniketdhakane.xyz`**.
+
+### Local
 
 ```bash
-go build -o lfm .
-# Optional but recommended: put the binary somewhere stable
-mkdir -p ~/bin && cp lfm ~/bin/lfm
-
-# Install from the binary you want launchd to run
-~/bin/lfm install    # or: ./lfm install
+cd apps/web
+npm install
+npm run dev
+# → http://localhost:8787
 ```
 
-This writes `~/Library/LaunchAgents/com.lfm.plist`, starts the agent now, and on every login.
+### Deploy
 
-| Action | Command |
-|--------|---------|
-| Status | `launchctl print gui/$(id -u)/com.lfm` |
-| Logs | `tail -f ~/Library/Logs/lfm/stderr.log` |
-| Stop / remove | `lfm uninstall` |
+Prerequisites:
 
-**Notes**
+- Cloudflare account with zone **aniketdhakane.xyz** (you already have this)
+- Logged in once: `npx wrangler login` (or `CLOUDFLARE_API_TOKEN`)
 
-- The agent runs `lfm run` using the **absolute path** of the binary you called `install` with. Rebuild + re-run `install` after moving the binary.
-- Prefer a stable path (`~/bin/lfm`), not a temp `go run` binary.
-- If Music never scrobbles under launchd, grant **Automation** access: System Settings → Privacy & Security → Automation (allow `lfm` to control Music). Running `./lfm now` once from Terminal can trigger the prompt.
+```bash
+cd apps/web
+npm install
+npm run deploy
+```
+
+`wrangler.jsonc` sets:
+
+- Worker name: `lfm-web`
+- Assets directory: `./public`
+- Custom domain route: `lfm.aniketdhakane.xyz` (`custom_domain: true`)
+
+On first deploy, Cloudflare creates the DNS record for the subdomain. No manual CNAME is required when using Workers Custom Domains (do **not** keep a conflicting CNAME for `lfm` if one already exists — remove it first).
+
+### Project layout
+
+```
+apps/web/
+├── public/                 # served as the site root
+│   ├── index.html
+│   ├── styles.css
+│   ├── lfm.png
+│   └── discord-showcase.png
+├── wrangler.jsonc
+├── package.json
+└── README.md
+```
+
+---
 
 ## License
 
-MIT (or your choice).
+MIT.
